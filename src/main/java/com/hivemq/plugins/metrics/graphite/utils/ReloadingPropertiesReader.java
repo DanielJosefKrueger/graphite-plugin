@@ -100,6 +100,7 @@ public abstract class ReloadingPropertiesReader {
      */
     public void reload() {
 
+        Properties oldProperties = new Properties(properties);
         Map<String, String> oldValues = getCurrentValues();
 
         try {
@@ -107,12 +108,96 @@ public abstract class ReloadingPropertiesReader {
 
             Map<String, String> newValues = getCurrentValues();
 
-            logChanges(oldValues, newValues);
-
+            //test whether currentValues makes sense, if not rollback to the old values
+            if(validateValues(newValues)){
+                logChanges(oldValues, newValues);
+            }else{
+                //ignore the new values and use old
+                log.warn("New values in the configurationFile are ignored, because they contain errors");
+                properties = oldProperties;
+            }
         } catch (IOException e) {
             log.debug("Not able to reload configuration file {}", this.file.getAbsolutePath());
         }
     }
+
+    private boolean validateValues(Map<String, String> newPropertiesValues) {
+
+        if(!validatePort(newPropertiesValues.get(PORT_KEY))){
+            return false;
+        }
+
+        if(!validateBatchMode(newPropertiesValues.get(BATCH_MODE_KEY))){
+            return false;
+        }
+
+        if(!validateBatchSize(newPropertiesValues.get(BATCH_SIZE_KEY))){
+            return false;
+        }
+
+
+        if(!validateReportingInterval(newPropertiesValues.get(REPORTING_INTERVAL_KEY))){
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateReportingInterval(String stringReportingInterval) {
+        if(stringReportingInterval== null){ //using default is ok
+            return true;
+        }
+        try{
+            Integer.parseInt(stringReportingInterval);
+        }catch(Exception e){
+            log.warn("reportingInterval is configured false: {}. Value must be an integer", stringReportingInterval);
+        }
+
+        return true;
+    }
+
+    private boolean validateBatchSize(String stringBatchSize) {
+        if(stringBatchSize == null){  //using default is ok
+            return true;
+        }
+
+        try{
+            Integer.parseInt(stringBatchSize);
+        }catch(Exception e){
+            log.warn("batchSize is configured false: {}. Value must be an integer", stringBatchSize);
+        }
+        return true;
+    }
+
+    private boolean validateBatchMode(String stringBatchMode) {
+        if(stringBatchMode == null){
+            return true; //batchMode not set is ok
+        }
+        try{
+            Boolean.parseBoolean(stringBatchMode);
+        }catch(Exception e){
+            log.warn("batchMode is configured false: {}. Value must be true or false", stringBatchMode);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validatePort(String stringPort) {
+        int port;
+        try{
+            port = Integer.parseInt(stringPort);
+
+        }catch(Exception e){
+            log.warn("Port is configured false: {}. Can not parse port", stringPort);
+            return false;
+        }
+        return true;
+    }
+
+
+
+
+
+
 
     public void addCallback(final String propertyName, final ValueChangedCallback<String> changedCallback) {
 

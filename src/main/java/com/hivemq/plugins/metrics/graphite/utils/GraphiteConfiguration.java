@@ -58,7 +58,7 @@ public class GraphiteConfiguration extends ReloadingPropertiesReader {
     }
 
     public boolean isBatchMode() {
-        return Boolean.parseBoolean(properties.getProperty("batchMode"));
+        return Boolean.parseBoolean(properties.getProperty("batchMode", "false"));
     }
 
     public String getHost() {
@@ -70,15 +70,15 @@ public class GraphiteConfiguration extends ReloadingPropertiesReader {
     }
 
     public int getBatchSize() {
-        return Integer.parseInt(properties.getProperty("batchSize"));
+        return Integer.parseInt(properties.getProperty("batchSize", "3"));
     }
 
     public int getReportingInterval() {
-        return Integer.parseInt(properties.getProperty("reportingInterval"));
+        return Integer.parseInt(properties.getProperty("reportingInterval", "60"));
     }
 
     public String getPrefix() {
-        return properties.getProperty("prefix");
+        return properties.getProperty("prefix", "");
     }
 
     @Override
