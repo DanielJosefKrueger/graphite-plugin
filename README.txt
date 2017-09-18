@@ -43,6 +43,19 @@ Property            | Description                                       |
 |prefix             | The prefix of all metrics                         |
 -------------------------------------------------------------------------
 
+Furthermore there is the option to use environmental variables to configure the plugin.
+They correspond to the options set in the graphite-plugin.properties file, but will overwrite them.
+
+-----------------------------------------------------------------------------------------
+Environmental Variable              | Description                                       |
+-----------------------------------------------------------------------------------------
+|HIVEMQ_GRAPHITE_HOST               | The hostname or IP address                        |
+|HIVEMQ_GRAPHITE_PORT               | The Graphite Port                                 |
+|HIVEMQ_GRAPHITE_BATCH_MODE         | If metrics should be batched                      |
+|HIVEMQ_GRAPHITE_BATCH_SIZE         | The number of batches before sending the data     |
+|HIVEMQ_GRAPHITE_REPORTING_INTERVAL | The interval to send metrics                      |
+|HIVEMQ_GRAPHITE_PREFIX             | The prefix of all metrics                         |
+-----------------------------------------------------------------------------------------
 
 
 Example configuration file:

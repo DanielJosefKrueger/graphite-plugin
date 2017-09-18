@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
@@ -45,6 +44,18 @@ public abstract class ReloadingPropertiesReader {
     private static final Logger log = LoggerFactory.getLogger(GraphiteConfiguration.class);
 
     private static final String ENV_VARIABLES_PREFIX = "HIVEMQ_GRAPHITE_";
+
+    private static final String HOST_KEY = "host";
+    private static final String PORT_KEY ="port";
+    private static final String BATCH_MODE_KEY="batchMode";
+    private static final String BATCH_SIZE_KEY = "batchSize";
+    private static final String REPORTING_INTERVAL_KEY ="reportingInterval";
+    private static final String PREFIX_KEY = "prefix";
+
+    private static final String[] PROP_KEYS = new String[]{
+            HOST_KEY,PORT_KEY,BATCH_MODE_KEY,BATCH_SIZE_KEY, REPORTING_INTERVAL_KEY,PREFIX_KEY
+    };
+
 
     private final PluginExecutorService pluginExecutorService;
     private final SystemInformation systemInformation;
@@ -122,15 +133,19 @@ public abstract class ReloadingPropertiesReader {
 
     private void loadProperties() throws IOException {
         final Properties fileProperties = new Properties();
+
+        for(String key: PROP_KEYS){
+            fileProperties.put(key, "");
+        }
         fileProperties.load(new FileReader(file));
 
         final Map<String, String> propertiesMap = Maps.newHashMap(Maps.fromProperties(fileProperties));
         for (String key : propertiesMap.keySet()) {
             final String environmentVariableName = getEnvironmentVariableName(key);
             final Optional<String> environmentVariableValue = environmentReader.getEnvironmentVariable(environmentVariableName);
-
             if (environmentVariableValue.isPresent()) {
                 propertiesMap.put(key, environmentVariableValue.get());
+
             }
         }
         properties = new Properties();
