@@ -47,7 +47,7 @@ public abstract class ReloadingPropertiesReader {
 
     private static final String HOST_KEY = "host";
     private static final String PORT_KEY ="port";
-    private static final String BATCH_MODE_KEY="batchMode";
+    private static final String BATCH_MODE_KEY= "batchMode";
     private static final String BATCH_SIZE_KEY = "batchSize";
     private static final String REPORTING_INTERVAL_KEY ="reportingInterval";
     private static final String PREFIX_KEY = "prefix";
@@ -98,9 +98,9 @@ public abstract class ReloadingPropertiesReader {
     /**
      * Reloads the specified .properties file
      */
-    public void reload() {
+    void reload() {
 
-        Properties oldProperties = new Properties(properties);
+        Properties oldProperties = (Properties)properties.clone(); //deep copies are needed
         Map<String, String> oldValues = getCurrentValues();
 
         try {
@@ -109,7 +109,7 @@ public abstract class ReloadingPropertiesReader {
             Map<String, String> newValues = getCurrentValues();
 
             //test whether currentValues makes sense, if not rollback to the old values
-            if(validateValues(newValues)){
+            if(validateProperties(properties)){
                 logChanges(oldValues, newValues);
             }else{
                 //ignore the new values and use old
@@ -121,22 +121,21 @@ public abstract class ReloadingPropertiesReader {
         }
     }
 
-    private boolean validateValues(Map<String, String> newPropertiesValues) {
+    private boolean validateProperties(Properties newProperties) {
 
-        if(!validatePort(newPropertiesValues.get(PORT_KEY))){
+        if(!validatePort(newProperties.getProperty(PORT_KEY))){
             return false;
         }
 
-        if(!validateBatchMode(newPropertiesValues.get(BATCH_MODE_KEY))){
+        if(!validateBatchMode(newProperties.getProperty(BATCH_MODE_KEY))){
             return false;
         }
 
-        if(!validateBatchSize(newPropertiesValues.get(BATCH_SIZE_KEY))){
+        if(!validateBatchSize(newProperties.getProperty(BATCH_SIZE_KEY))){
             return false;
         }
 
-
-        if(!validateReportingInterval(newPropertiesValues.get(REPORTING_INTERVAL_KEY))){
+        if(!validateReportingInterval(newProperties.getProperty(REPORTING_INTERVAL_KEY))){
             return false;
         }
         return true;
@@ -150,6 +149,7 @@ public abstract class ReloadingPropertiesReader {
             Integer.parseInt(stringReportingInterval);
         }catch(Exception e){
             log.warn("reportingInterval is configured false: {}. Value must be an integer", stringReportingInterval);
+            return false;
         }
 
         return true;
@@ -164,6 +164,7 @@ public abstract class ReloadingPropertiesReader {
             Integer.parseInt(stringBatchSize);
         }catch(Exception e){
             log.warn("batchSize is configured false: {}. Value must be an integer", stringBatchSize);
+            return false;
         }
         return true;
     }
@@ -172,10 +173,9 @@ public abstract class ReloadingPropertiesReader {
         if(stringBatchMode == null){
             return true; //batchMode not set is ok
         }
-        try{
-            Boolean.parseBoolean(stringBatchMode);
-        }catch(Exception e){
-            log.warn("batchMode is configured false: {}. Value must be true or false", stringBatchMode);
+       if(!(stringBatchMode.equals("false")||(stringBatchMode.equals("true")))){
+            log.warn("batchMode is configured false: {}. Value must be either true or false", stringBatchMode);
+            //the test with Boolean.parse() wont work because it will parse any string to false, if the string is not "true"
             return false;
         }
         return true;
@@ -190,16 +190,17 @@ public abstract class ReloadingPropertiesReader {
             log.warn("Port is configured false: {}. Can not parse port", stringPort);
             return false;
         }
+
+        if(port <1){
+            log.warn("Invalid port configuration. Port must be greater than 0");
+            return false;
+        }
+
+
         return true;
     }
 
-
-
-
-
-
-
-    public void addCallback(final String propertyName, final ValueChangedCallback<String> changedCallback) {
+     void addCallback(final String propertyName, final ValueChangedCallback<String> changedCallback) {
 
         if (!callbacks.containsKey(propertyName)) {
             callbacks.put(propertyName, Lists.<ValueChangedCallback<String>>newArrayList());
@@ -219,18 +220,14 @@ public abstract class ReloadingPropertiesReader {
     private void loadProperties() throws IOException {
         final Properties fileProperties = new Properties();
 
-        for(String key: PROP_KEYS){
-            fileProperties.put(key, "");
-        }
         fileProperties.load(new FileReader(file));
 
         final Map<String, String> propertiesMap = Maps.newHashMap(Maps.fromProperties(fileProperties));
-        for (String key : propertiesMap.keySet()) {
+        for (String key : PROP_KEYS) {
             final String environmentVariableName = getEnvironmentVariableName(key);
             final Optional<String> environmentVariableValue = environmentReader.getEnvironmentVariable(environmentVariableName);
             if (environmentVariableValue.isPresent()) {
                 propertiesMap.put(key, environmentVariableValue.get());
-
             }
         }
         properties = new Properties();
@@ -258,15 +255,25 @@ public abstract class ReloadingPropertiesReader {
 
         for (Map.Entry<String, String> stringStringEntry : difference.entriesOnlyOnLeft().entrySet()) {
             log.debug("Plugin configuration {} removed", stringStringEntry.getKey(), stringStringEntry.getValue());
+            if (callbacks.containsKey(stringStringEntry.getKey())) {
+                for (ValueChangedCallback<String> callback : callbacks.get(stringStringEntry.getKey())) {
+                    callback.valueChanged(properties.getProperty(stringStringEntry.getValue()));
+                }
+            }
         }
 
         for (Map.Entry<String, String> stringStringEntry : difference.entriesOnlyOnRight().entrySet()) {
             log.debug("Plugin configuration {} added: {}", stringStringEntry.getValue(), stringStringEntry.getValue());
+            if (callbacks.containsKey(stringStringEntry.getKey())) {
+                for (ValueChangedCallback<String> callback : callbacks.get(stringStringEntry.getKey())) {
+                    callback.valueChanged(stringStringEntry.getValue());
+                }
+            }
         }
     }
 
     @NotNull
-    public Properties getProperties() {
+    Properties getProperties() {
         return properties;
     }
 

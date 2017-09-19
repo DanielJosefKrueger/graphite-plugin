@@ -16,12 +16,14 @@
 package com.hivemq.plugins.metrics.graphite.utils;
 
 import com.hivemq.spi.config.SystemInformation;
+import com.hivemq.spi.exceptions.UnrecoverableException;
 import com.hivemq.spi.services.PluginExecutorService;
 import com.hivemq.spi.services.configuration.ValueChangedCallback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.io.File;
 import java.util.Properties;
 
 /**
@@ -31,6 +33,8 @@ import java.util.Properties;
  */
 @Singleton
 public class GraphiteConfiguration extends ReloadingPropertiesReader {
+
+    private static final Logger log = LoggerFactory.getLogger(ReloadingPropertiesReader.class);
 
     private RestartListener listener;
 
@@ -62,19 +66,44 @@ public class GraphiteConfiguration extends ReloadingPropertiesReader {
     }
 
     public String getHost() {
-        return properties.getProperty("host");
+        String strHost = properties.getProperty("host");
+        if(strHost == null){
+            log.error("Host configuration is missing. Shutting down HiveMQ");
+            throw new UnrecoverableException(false);
+        }
+        return strHost;
     }
 
     public int getPort() {
-        return Integer.parseInt(properties.getProperty("port"));
+        String strPort = properties.getProperty("port");
+        if(strPort == null){
+            log.error("Port configuration is missing. Shutting down HiveMQ");
+            throw new UnrecoverableException(false);
+        }
+        try{
+            return Integer.parseInt(strPort);
+        }catch(Exception e){
+            log.error("Port configuration could not be parsed", e);
+            throw new UnrecoverableException();
+        }
     }
 
     public int getBatchSize() {
-        return Integer.parseInt(properties.getProperty("batchSize", "3"));
+        try{
+            return Integer.parseInt(properties.getProperty("batchSize", "3"));
+        }catch(Exception e){
+            log.error("Error while parsing configuration of batchSize. Shutting down HiveMQ", e);
+            throw new UnrecoverableException(false);
+        }
     }
 
     public int getReportingInterval() {
-        return Integer.parseInt(properties.getProperty("reportingInterval", "60"));
+        try{
+            return Integer.parseInt(properties.getProperty("reportingInterval", "60"));
+        }catch(Exception e){
+            log.error("Error while parsing configuration of reportingInterval. Shutting down HiveMQ", e);
+            throw new UnrecoverableException(false);
+        }
     }
 
     public String getPrefix() {
