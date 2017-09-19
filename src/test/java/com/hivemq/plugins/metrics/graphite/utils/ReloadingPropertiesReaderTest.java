@@ -112,35 +112,36 @@ public class ReloadingPropertiesReaderTest {
         assertEquals("value1", reader.getProperties().get("key1"));
 
         final Properties properties = new Properties();
-        properties.setProperty("key1", "othervalue1");
+        properties.setProperty("batchMode", "false");
+        properties.setProperty("port", "1234");
         properties.store(new FileOutputStream(tempFile), "");
 
         reader.reload();
 
-        assertEquals("othervalue1", reader.getProperties().get("key1"));
+        assertEquals("1234", reader.getProperties().get("port"));
     }
 
     @Test
     public void test_reload_with_overriden_properties() throws Exception {
 
         final Properties properties = new Properties();
-        properties.setProperty("camelCaseExample", "camelCaseValue");
-        properties.setProperty("key1", "value1");
+        properties.setProperty("batchMode", "false");
+        properties.setProperty("port", "1234");
         properties.store(new FileOutputStream(tempFile), "");
 
 
         reader.postConstruct();
 
-        assertEquals("value1", reader.getProperties().get("key1"));
-        assertEquals("camelCaseValue", reader.getProperties().get("camelCaseExample"));
+        assertEquals("false", reader.getProperties().get("batchMode"));
+        assertEquals("1234", reader.getProperties().get("port"));
 
-        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_KEY1")).thenReturn(Optional.of("overriden_value_1"));
-        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_CAMEL_CASE_EXAMPLE")).thenReturn(Optional.of("overriden_value_2"));
+        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_PORT")).thenReturn(Optional.of("78787"));
+        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_BATCH_MODE")).thenReturn(Optional.of("true"));
 
         reader.reload();
 
-        assertEquals("overriden_value_1", reader.getProperties().get("key1"));
-        assertEquals("overriden_value_2", reader.getProperties().get("camelCaseExample"));
+        assertEquals("78787", reader.getProperties().get("port"));
+        assertEquals("true", reader.getProperties().get("batchMode"));
     }
 
     @Test
@@ -162,14 +163,16 @@ public class ReloadingPropertiesReaderTest {
         });
 
         final Properties properties = new Properties();
-        properties.setProperty("key2", "othervalue2");
+        properties.setProperty("key2", "otherValue2");
+        properties.setProperty("port", "1234");
+        properties.setProperty("host", "localhost");
         properties.store(new FileOutputStream(tempFile), "");
 
         reader.reload();
 
-        assertEquals(true, latch.await(5, TimeUnit.SECONDS));
-        assertEquals("othervalue2", callbackValue[0]);
-        assertEquals("othervalue2", reader.getProperties().get("key2"));
+        assertEquals(true, latch.await(4, TimeUnit.SECONDS));
+        assertEquals("otherValue2", callbackValue[0]);
+        assertEquals("otherValue2", reader.getProperties().get("key2"));
     }
 
     @Test
@@ -185,19 +188,99 @@ public class ReloadingPropertiesReaderTest {
     @Test
     public void test_overriden_getProperties_with_environment_variables() throws Exception {
         final Properties properties = new Properties();
-        properties.setProperty("camelCaseExample", "camelCaseValue");
-        properties.setProperty("key1", "value1");
+        properties.setProperty("batchMode", "false");
+        properties.setProperty("port", "1234");
         properties.store(new FileOutputStream(tempFile), "");
 
 
-        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_KEY1")).thenReturn(Optional.of("overriden_value_1"));
-        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_CAMEL_CASE_EXAMPLE")).thenReturn(Optional.of("overriden_value_2"));
+        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_PORT")).thenReturn(Optional.of("8787"));
+        when(environmentReader.getEnvironmentVariable("HIVEMQ_GRAPHITE_BATCH_MODE")).thenReturn(Optional.of("true"));
 
         reader.postConstruct();
 
-        assertEquals("overriden_value_1", reader.getProperties().get("key1"));
-        assertEquals("overriden_value_2", reader.getProperties().get("camelCaseExample"));
+        assertEquals("8787", reader.getProperties().get("port"));
+        assertEquals("true", reader.getProperties().get("batchMode"));
     }
+
+
+    @Test
+    public void test_fail_reload_port_wrong_negative() throws  Exception{
+
+        reader.postConstruct();
+
+        assertEquals("value1", reader.getProperties().get("key1"));
+
+        final Properties properties = new Properties();
+        properties.setProperty("key1", "newValue");
+        properties.setProperty("port", "-1");
+        properties.setProperty("host", "localhost");
+        properties.store(new FileOutputStream(tempFile), "");
+
+        reader.reload();
+        assertEquals("value1", reader.getProperties().get("key1"));
+        assertFalse(reader.getProperties().containsKey("port"));
+    }
+
+    @Test
+    public void test_fail_reload_port_wrong_no_number() throws  Exception{
+
+        reader.postConstruct();
+
+        assertEquals("value1", reader.getProperties().get("key1"));
+
+        final Properties properties = new Properties();
+        properties.setProperty("key1", "newValue");
+        properties.setProperty("port", "noNumber");
+        properties.setProperty("host", "localhost");
+        properties.store(new FileOutputStream(tempFile), "");
+
+        reader.reload();
+        assertEquals("value1", reader.getProperties().get("key1"));
+        assertFalse(reader.getProperties().containsKey("port"));
+    }
+
+    @Test
+    public void test_fail_reload_reportingInterval_wrong() throws  Exception{
+
+        reader.postConstruct();
+
+        assertEquals("value1", reader.getProperties().get("key1"));
+
+        final Properties properties = new Properties();
+        properties.setProperty("key1", "newValue");
+        properties.setProperty("port", "1");
+        properties.setProperty("reportingInterval", "noNumber");
+        properties.store(new FileOutputStream(tempFile), "");
+
+        reader.reload();
+
+        assertEquals("value1", reader.getProperties().get("key1"));
+        assertFalse(reader.getProperties().containsKey("reportingInterval"));
+    }
+
+    @Test
+    public void test_fail_reload_batchMode_wrong() throws  Exception{
+
+        reader.postConstruct();
+
+        assertEquals("value1", reader.getProperties().get("key1"));
+
+        final Properties properties = new Properties();
+        properties.setProperty("key1", "newValue");
+        properties.setProperty("batchMode", "nowtfBoolean");
+        properties.setProperty("port", "1");
+        properties.store(new FileOutputStream(tempFile), "");
+
+        reader.reload();
+        System.out.println(reader.properties);
+        assertEquals("value1", reader.getProperties().get("key1"));
+        assertFalse(reader.getProperties().containsKey("batchMode"));
+    }
+
+
+
+
+
 
     private static class TestReloadingPropertiesReader extends ReloadingPropertiesReader {
 
